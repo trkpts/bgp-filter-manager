@@ -48,7 +48,7 @@ class BGPFilterManager {
         this.elements.saveRuleButton.addEventListener('click', () => this.saveRule());
 
         // Modal events
-        this.elements.ruleModal.addEventListener('hidden.bs-modal', () => this.resetForm());
+        this.elements.ruleModal.addEventListener('hidden.bs.modal', () => this.resetForm());
     }
 
     loadSampleData() {
@@ -204,11 +204,11 @@ class BGPFilterManager {
 
         if (this.editingIndex !== null) {
             // Update existing filter
-            this.filters[this.editingIndex] = rule;
+            this.filters[this.editingIndex] = newRule;
             this.showMessage('Filter updated successfully', 'success');
         } else {
             // Add new filter
-            this.filters.push(rule);
+            this.filters.push(newRule);
             this.showMessage('Filter added successfully', 'success');
         }
 
@@ -333,7 +333,7 @@ class BGPFilterManager {
         if (this.filters.length === 0) {
             this.elements.filtersTableBody.innerHTML = `
                 <tr id="emptyRow">
-                    <td colspan="7" class="text-center text-muted py-5">
+                    <td colspan="8" class="text-center text-muted py-5">
                         <i class="fas fa-inbox fa-2x mb-2"></i>
                         <p>No BGP filters configured yet</p>
                         <button id="addFirstRuleButtonTbl" class="btn btn-outline-primary">Add Your First Rule</button>
