@@ -22,7 +22,7 @@ class BGPFilterManager {
             copyOutputButton: document.getElementById('copyOutputButton'),
             ruleModal: document.getElementById('ruleModal'),
             ruleForm: document.getElementById('ruleForm'),
-            remoteAsn: document.getElementById('remoteAsn'),
+            chain: document.getElementById('chain'),
             prefix: document.getElementById('prefix'),
             action: document.getElementById('action'),
             prepend: document.getElementById('prepend'),
@@ -55,7 +55,7 @@ class BGPFilterManager {
         this.filters = [
             {
                 id: 1,
-                remoteAsn: '65001',
+                chain: 'bgp-in',
                 prefix: '192.168.1.0/24',
                 action: 'accept',
                 prepend: 2,
@@ -64,7 +64,7 @@ class BGPFilterManager {
             },
             {
                 id: 2,
-                remoteAsn: '65002',
+                chain: 'bgp-in',
                 prefix: '10.0.0.0/8',
                 action: 'reject',
                 prepend: null,
@@ -73,7 +73,7 @@ class BGPFilterManager {
             },
             {
                 id: 3,
-                remoteAsn: '65003',
+                chain: 'bgp-out',
                 prefix: '203.0.113.0/24',
                 action: 'accept',
                 prepend: 1,
@@ -103,14 +103,14 @@ class BGPFilterManager {
                 if (line.includes('/routing/filter/rule')) {
                     // Extract relevant information from RouterOS commands
                     // This is a simplified example - real parsing would be more complex
-                    const asnMatch = line.match(/remote-as=(\d+)/i);
+                    const chainMatch = line.match(/chain=([^\s]+)/i);
                     const prefixMatch = line.match(/prefix=([^\\s]+)/i);
                     const actionMatch = line.match(/action=(accept|reject|drop)/i);
 
-                    if (asnMatch || prefixMatch) {
+                    if (chainMatch || prefixMatch) {
                         parsedFilters.push({
                             id: Date.now(),
-                            remoteAsn: asnMatch ? asnMatch[1] : 'unknown',
+                            chain: chainMatch ? chainMatch[1] : 'bgp-in',
                             prefix: prefixMatch ? prefixMatch[1] : '0.0.0.0/0',
                             action: actionMatch ? actionMatch[1] : 'accept',
                             prepend: null,
@@ -150,7 +150,7 @@ class BGPFilterManager {
         if (index !== null) {
             // Editing existing filter
             const filter = this.filters[index];
-            this.elements.remoteAsn.value = filter.remoteAsn;
+            this.elements.chain.value = filter.chain || '';
             this.elements.prefix.value = filter.prefix;
             this.elements.action.value = filter.action;
             this.elements.prepend.value = filter.prepend || '';
@@ -175,7 +175,7 @@ class BGPFilterManager {
 
         const rule = {
             id: this.editingIndex !== null ? this.filters[this.editingIndex].id : Date.now(),
-            remoteAsn: this.elements.remoteAsn.value.trim(),
+            chain: this.elements.chain.value.trim(),
             prefix: this.elements.prefix.value.trim(),
             action: this.elements.action.value,
             prepend: this.elements.prepend.value ? parseInt(this.elements.prepend.value) : null,
@@ -204,16 +204,13 @@ class BGPFilterManager {
     validateForm() {
         let isValid = true;
         
-        // Validate remote ASN
-        const asn = this.elements.remoteAsn.value.trim();
-        if (!asn) {
-            this.markInvalid(this.elements.remoteAsn, 'ASN is required');
-            isValid = false;
-        } else if (!/^(AS)?\d+$/.test(asn.replace(/^AS/i, ''))) {
-            this.markInvalid(this.elements.remoteAsn, 'Invalid ASN format');
+        // Validate chain
+        const chain = this.elements.chain.value.trim();
+        if (!chain) {
+            this.markInvalid(this.elements.chain, 'Chain is required');
             isValid = false;
         } else {
-            this.markValid(this.elements.remoteAsn);
+            this.markValid(this.elements.chain);
         }
 
         // Validate prefix
@@ -279,7 +276,13 @@ class BGPFilterManager {
     }
 
     resetForm() {
-        this.elements.ruleForm.reset();
+        this.elements.chain.value = '';
+        this.elements.prefix.value = '';
+        this.elements.action.value = 'accept';
+        this.elements.prepend.value = '';
+        this.elements.description.value = '';
+        this.elements.comment.value = '';
+        
         // Clear any validation states
         const inputs = this.elements.ruleForm.querySelectorAll('input, select, textarea');
         inputs.forEach(input => {
@@ -313,7 +316,7 @@ class BGPFilterManager {
             html += `
                 <tr>
                     <td>${index + 1}</td>
-                    <td>${filter.remoteAsn}</td>
+                    <td>${filter.chain || 'default'}</td>
                     <td class="prefix-cell">${filter.prefix}</td>
                     <td><span class="${actionClass}">${actionText}</span></td>
                     <td>${filter.prepend ? filter.prepend : '-'}</td>
@@ -349,66 +352,53 @@ class BGPFilterManager {
         this.elements.acceptedFilters.textContent = this.filters.filter(f => f.action === 'accept').length;
         this.elements.rejectedFilters.textContent = this.filters.filter(f => f.action === 'reject' || f.action === 'drop').length;
         
-        // Count unique ASNs
-        const uniqueAsns = new Set(this.filters.map(f => f.remoteAsn));
-        this.elements.asnCount.textContent = uniqueAsns.size;
+        // Count unique chains
+        const uniqueChains = new Set(this.filters.map(f => f.chain));
+        this.elements.asnCount.textContent = uniqueChains.size;
     }
 
     generateOutput() {
         let output = '# Generated BGP Filter Configuration for MikroTik RouterOS v7\n';
         output += '# Generated on: ' + new Date().toLocaleString() + '\n\n';
 
-        // Generate address lists for filtering
-        const asnLists = {};
-        const actionLists = { accept: [], reject: [], drop: [] };
-
+        // Generate routing filters based on chains and actions
+        const chainGroups = {};
         this.filters.forEach(filter => {
-            // Group by action
-            actionLists[filter.action].push(filter);
-
-            // Group by ASN for address lists
-            if (!asnLists[filter.remoteAsn]) {
-                asnLists[filter.remoteAsn] = [];
+            if (!chainGroups[filter.chain]) {
+                chainGroups[filter.chain] = { accept: [], reject: [], drop: [] };
             }
-            asnLists[filter.remoteAsn].push(filter);
+            chainGroups[filter.chain][filter.action].push(filter);
         });
 
-        // Generate address lists for each ASN
-        for (const [asn, filters] of Object.entries(asnLists)) {
-            output += `# Address list for ASN ${asn}\n`;
-            filters.forEach(filter => {
-                output += `/ip firewall address-list add list=bgp-asn-${asn} address=${filter.prefix} comment="${filter.description || filter.comment || `ASN ${asn}`}"\n`;
-            });
-            output += '\n';
-        }
+        // Generate routing filters for each chain
+        for (const [chain, actions] of Object.entries(chainGroups)) {
+            if (actions.accept.length > 0) {
+                output += `# Accept filters for chain ${chain}\n`;
+                actions.accept.forEach(filter => {
+                    output += `/routing/filter/rule add chain=${filter.chain} action=accept prefix=${filter.prefix}`;
+                    if (filter.prepend) {
+                        output += ` set-bgp-prepend-path=${filter.prepend}`;
+                    }
+                    output += ` comment="${filter.description || filter.comment || `Accept prefix ${filter.prefix}`}"\n`;
+                });
+                output += '\n';
+            }
 
-        // Generate routing filters based on actions
-        if (actionLists.accept.length > 0) {
-            output += '# Accept filters\n';
-            actionLists.accept.forEach(filter => {
-                output += `/routing/filter/rule add chain=bgp-in action=accept prefix=${filter.prefix}`;
-                if (filter.prepend) {
-                    output += ` set-bgp-prepend-path=${filter.prepend},${filter.remoteAsn}`;
-                }
-                output += ` comment="${filter.description || filter.comment || `Accept ASN ${filter.remoteAsn}`}"\n`;
-            });
-            output += '\n';
-        }
+            if (actions.reject.length > 0) {
+                output += `# Reject filters for chain ${chain}\n`;
+                actions.reject.forEach(filter => {
+                    output += `/routing/filter/rule add chain=${filter.chain} action=reject prefix=${filter.prefix} comment="${filter.description || filter.comment || `Reject prefix ${filter.prefix}`}"\n`;
+                });
+                output += '\n';
+            }
 
-        if (actionLists.reject.length > 0) {
-            output += '# Reject filters\n';
-            actionLists.reject.forEach(filter => {
-                output += `/routing/filter/rule add chain=bgp-in action=reject prefix=${filter.prefix} comment="${filter.description || filter.comment || `Reject ASN ${filter.remoteAsn}`}"\n`;
-            });
-            output += '\n';
-        }
-
-        if (actionLists.drop.length > 0) {
-            output += '# Drop filters\n';
-            actionLists.drop.forEach(filter => {
-                output += `/routing/filter/rule add chain=bgp-in action=jump jump-target=bgp-drop prefix=${filter.prefix} comment="${filter.description || filter.comment || `Drop ASN ${filter.remoteAsn}`}"\n`;
-            });
-            output += '\n';
+            if (actions.drop.length > 0) {
+                output += `# Drop filters for chain ${chain}\n`;
+                actions.drop.forEach(filter => {
+                    output += `/routing/filter/rule add chain=${filter.chain} action=jump jump-target=bgp-drop prefix=${filter.prefix} comment="${filter.description || filter.comment || `Drop prefix ${filter.prefix}`}"\n`;
+                });
+                output += '\n';
+            }
         }
 
         // Add BGP configuration examples

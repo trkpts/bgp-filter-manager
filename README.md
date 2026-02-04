@@ -61,7 +61,7 @@ Simply serve the files using any web server (Apache, Nginx, etc.). No special se
 
 1. Click "Add New Rule" to open the rule creation form
 2. Fill in the required fields:
-   - Remote ASN (e.g., 65001 or AS65001)
+   - Chain (e.g., bgp-in, bgp-out)
    - Prefix (e.g., 192.168.1.0/24)
    - Action (Accept/Reject/Drop)
    - Optional prepend value (1-10)
@@ -86,10 +86,10 @@ The tool generates commands compatible with RouterOS v7, including:
 
 ## Fields Explained
 
-- **Remote ASN**: The autonomous system number you're filtering for (e.g., 65001)
+- **Chain**: The routing filter chain name (e.g., bgp-in, bgp-out)
 - **Prefix**: The IP prefix to filter (e.g., 192.168.1.0/24)
 - **Action**: What to do with matching routes (Accept, Reject, or Drop)
-- **Prepend**: Number of times to prepend the ASN in the path (for traffic engineering)
+- **Prepend**: Number of times to prepend to the AS path (for traffic engineering)
 - **Description**: Brief description of the filter's purpose
 - **Comment**: Additional notes about the filter
 
