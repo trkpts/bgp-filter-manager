@@ -49,6 +49,24 @@ class BGPFilterManager {
 
         // Modal events
         this.elements.ruleModal.addEventListener('hidden.bs.modal', () => this.resetForm());
+        
+        // Event delegation for dynamic table buttons
+        this.elements.filtersTableBody.addEventListener('click', (event) => {
+            if (event.target.closest('.edit-btn')) {
+                event.preventDefault();
+                const button = event.target.closest('.edit-btn');
+                const index = parseInt(button.getAttribute('data-index'));
+                this.showAddEditModal(index);
+            } else if (event.target.closest('.delete-btn')) {
+                event.preventDefault();
+                const button = event.closest('.delete-btn');
+                const index = parseInt(button.getAttribute('data-index'));
+                this.deleteFilter(index);
+            } else if (event.target.closest('.add-first-rule-btn')) {
+                event.preventDefault();
+                this.showAddEditModal();
+            }
+        });
     }
 
     loadSampleData() {
@@ -336,12 +354,10 @@ class BGPFilterManager {
                     <td colspan="8" class="text-center text-muted py-5">
                         <i class="fas fa-inbox fa-2x mb-2"></i>
                         <p>No BGP filters configured yet</p>
-                        <button id="addFirstRuleButtonTbl" class="btn btn-outline-primary">Add Your First Rule</button>
+                        <button id="addFirstRuleButtonTbl" class="btn btn-outline-primary add-first-rule-btn">Add Your First Rule</button>
                     </td>
                 </tr>
             `;
-            // Bind event to the new button
-            document.getElementById('addFirstRuleButtonTbl').addEventListener('click', () => this.showAddEditModal());
             return;
         }
 
@@ -360,12 +376,12 @@ class BGPFilterManager {
                     <td>${filter.description || '-'}</td>
                     <td class="prefix-cell">${filter.rule || '-'}</td>
                     <td>
-                        <button class="btn btn-sm btn-outline-primary action-btn" 
-                                onclick="bgpManager.showAddEditModal(${index})">
+                        <button class="btn btn-sm btn-outline-primary action-btn edit-btn" 
+                                data-index="${index}">
                             <i class="fas fa-edit"></i>
                         </button>
-                        <button class="btn btn-sm btn-outline-danger action-btn" 
-                                onclick="bgpManager.deleteFilter(${index})">
+                        <button class="btn btn-sm btn-outline-danger action-btn delete-btn" 
+                                data-index="${index}">
                             <i class="fas fa-trash"></i>
                         </button>
                     </td>
