@@ -28,6 +28,7 @@ class BGPFilterManager {
             prepend: document.getElementById('prepend'),
             description: document.getElementById('description'),
             comment: document.getElementById('comment'),
+            rule: document.getElementById('rule'),
             saveRuleButton: document.getElementById('saveRuleButton'),
             totalFilters: document.getElementById('totalFilters'),
             acceptedFilters: document.getElementById('acceptedFilters'),
@@ -55,12 +56,13 @@ class BGPFilterManager {
         this.filters = [
             {
                 id: 1,
-                chain: 'bgp-in',
-                prefix: '192.168.1.0/24',
+                chain: 'isp-HE-out',
+                prefix: '23.145.224.0/24',
                 action: 'accept',
-                prepend: 2,
-                description: 'Primary upstream',
-                comment: 'Main connection to upstream provider'
+                prepend: null,
+                description: 'Announce prefix - CX Bradford Broadband',
+                comment: 'Announce prefix - CX Bradford Broadband',
+                rule: 'if (dst == 23.145.224.0/24) { accept; }'
             },
             {
                 id: 2,
@@ -69,7 +71,8 @@ class BGPFilterManager {
                 action: 'reject',
                 prepend: null,
                 description: 'RFC 1918 space',
-                comment: 'Block private IP space'
+                comment: 'Block private IP space',
+                rule: 'if (dst == 10.0.0.0/8) { reject; }'
             },
             {
                 id: 3,
@@ -78,7 +81,8 @@ class BGPFilterManager {
                 action: 'accept',
                 prepend: 1,
                 description: 'Test network',
-                comment: 'Documentation network'
+                comment: 'Documentation network',
+                rule: 'if (dst == 203.0.113.0/24) { accept; }'
             }
         ];
         
@@ -106,16 +110,29 @@ class BGPFilterManager {
                     const chainMatch = line.match(/chain=([^\s]+)/i);
                     const prefixMatch = line.match(/prefix=([^\\s]+)/i);
                     const actionMatch = line.match(/action=(accept|reject|drop)/i);
+                    const commentMatch = line.match(/comment="([^"]*)"/i);
+                    const ruleMatch = line.match(/rule="([^"]*)"/i);
 
-                    if (chainMatch || prefixMatch) {
+                    // Try to extract prefix from rule if not in prefix parameter
+                    let extractedPrefix = prefixMatch ? prefixMatch[1] : null;
+                    if (!extractedPrefix && ruleMatch) {
+                        const ruleContent = ruleMatch[1];
+                        const prefixFromRule = ruleContent.match(/dst\s*==\s*([\d./]+|\[[\da-fA-F:]+\]/\d+)/);
+                        if (prefixFromRule) {
+                            extractedPrefix = prefixFromRule[1];
+                        }
+                    }
+
+                    if (chainMatch || extractedPrefix) {
                         parsedFilters.push({
                             id: Date.now(),
                             chain: chainMatch ? chainMatch[1] : 'bgp-in',
-                            prefix: prefixMatch ? prefixMatch[1] : '0.0.0.0/0',
+                            prefix: extractedPrefix || '0.0.0.0/0',
                             action: actionMatch ? actionMatch[1] : 'accept',
                             prepend: null,
-                            description: 'Parsed from input',
-                            comment: 'Imported from RouterOS commands'
+                            description: commentMatch ? commentMatch[1] : 'Parsed from input',
+                            comment: commentMatch ? commentMatch[1] : 'Imported from RouterOS commands',
+                            rule: ruleMatch ? ruleMatch[1] : null
                         });
                     }
                 }
@@ -156,6 +173,7 @@ class BGPFilterManager {
             this.elements.prepend.value = filter.prepend || '';
             this.elements.description.value = filter.description || '';
             this.elements.comment.value = filter.comment || '';
+            this.elements.rule.value = filter.rule || '';
             document.getElementById('ruleModalLabel').textContent = 'Edit BGP Filter Rule';
         } else {
             // Adding new filter
@@ -173,14 +191,15 @@ class BGPFilterManager {
             return;
         }
 
-        const rule = {
+        const newRule = {
             id: this.editingIndex !== null ? this.filters[this.editingIndex].id : Date.now(),
             chain: this.elements.chain.value.trim(),
             prefix: this.elements.prefix.value.trim(),
             action: this.elements.action.value,
             prepend: this.elements.prepend.value ? parseInt(this.elements.prepend.value) : null,
             description: this.elements.description.value.trim(),
-            comment: this.elements.comment.value.trim()
+            comment: this.elements.comment.value.trim(),
+            rule: this.elements.rule.value.trim() || this.generateRule(this.elements.action.value, this.elements.prefix.value.trim())
         };
 
         if (this.editingIndex !== null) {
@@ -259,6 +278,23 @@ class BGPFilterManager {
         return false;
     }
 
+    generateRule(action, prefix) {
+        // Generate a rule based on action and prefix
+        const actionMap = {
+            'accept': 'accept',
+            'reject': 'reject',
+            'drop': 'jump-target=bgp-drop'
+        };
+        
+        const mappedAction = actionMap[action] || 'accept';
+        
+        if (mappedAction === 'jump-target=bgp-drop') {
+            return `if (dst == ${prefix}) { jump-target=bgp-drop; }`;
+        } else {
+            return `if (dst == ${prefix}) { ${mappedAction}; }`;
+        }
+    }
+
     markInvalid(element, message) {
         element.classList.add('is-invalid');
         // Add feedback element if it doesn't exist
@@ -282,6 +318,7 @@ class BGPFilterManager {
         this.elements.prepend.value = '';
         this.elements.description.value = '';
         this.elements.comment.value = '';
+        this.elements.rule.value = '';
         
         // Clear any validation states
         const inputs = this.elements.ruleForm.querySelectorAll('input, select, textarea');
@@ -321,6 +358,7 @@ class BGPFilterManager {
                     <td><span class="${actionClass}">${actionText}</span></td>
                     <td>${filter.prepend ? filter.prepend : '-'}</td>
                     <td>${filter.description || '-'}</td>
+                    <td class="prefix-cell">${filter.rule || '-'}</td>
                     <td>
                         <button class="btn btn-sm btn-outline-primary action-btn" 
                                 onclick="bgpManager.showAddEditModal(${index})">
@@ -375,9 +413,14 @@ class BGPFilterManager {
             if (actions.accept.length > 0) {
                 output += `# Accept filters for chain ${chain}\n`;
                 actions.accept.forEach(filter => {
-                    output += `/routing/filter/rule add chain=${filter.chain} action=accept prefix=${filter.prefix}`;
-                    if (filter.prepend) {
-                        output += ` set-bgp-prepend-path=${filter.prepend}`;
+                    output += `/routing/filter/rule add chain=${filter.chain}`;
+                    if (filter.rule) {
+                        output += ` rule="${filter.rule}"`;
+                    } else {
+                        output += ` action=accept prefix=${filter.prefix}`;
+                        if (filter.prepend) {
+                            output += ` set-bgp-prepend-path=${filter.prepend}`;
+                        }
                     }
                     output += ` comment="${filter.description || filter.comment || `Accept prefix ${filter.prefix}`}"\n`;
                 });
@@ -387,7 +430,13 @@ class BGPFilterManager {
             if (actions.reject.length > 0) {
                 output += `# Reject filters for chain ${chain}\n`;
                 actions.reject.forEach(filter => {
-                    output += `/routing/filter/rule add chain=${filter.chain} action=reject prefix=${filter.prefix} comment="${filter.description || filter.comment || `Reject prefix ${filter.prefix}`}"\n`;
+                    output += `/routing/filter/rule add chain=${filter.chain}`;
+                    if (filter.rule) {
+                        output += ` rule="${filter.rule}"`;
+                    } else {
+                        output += ` action=reject prefix=${filter.prefix}`;
+                    }
+                    output += ` comment="${filter.description || filter.comment || `Reject prefix ${filter.prefix}`}"\n`;
                 });
                 output += '\n';
             }
@@ -395,7 +444,13 @@ class BGPFilterManager {
             if (actions.drop.length > 0) {
                 output += `# Drop filters for chain ${chain}\n`;
                 actions.drop.forEach(filter => {
-                    output += `/routing/filter/rule add chain=${filter.chain} action=jump jump-target=bgp-drop prefix=${filter.prefix} comment="${filter.description || filter.comment || `Drop prefix ${filter.prefix}`}"\n`;
+                    output += `/routing/filter/rule add chain=${filter.chain}`;
+                    if (filter.rule) {
+                        output += ` rule="${filter.rule}"`;
+                    } else {
+                        output += ` action=jump jump-target=bgp-drop prefix=${filter.prefix}`;
+                    }
+                    output += ` comment="${filter.description || filter.comment || `Drop prefix ${filter.prefix}`}"\n`;
                 });
                 output += '\n';
             }

@@ -82,11 +82,12 @@
                         <thead class="table-dark">
                             <tr>
                                 <th scope="col">#</th>
-                                <th scope="col">Remote ASN</th>
+                                <th scope="col">Chain</th>
                                 <th scope="col">Prefix</th>
                                 <th scope="col">Action</th>
                                 <th scope="col">Prepend</th>
                                 <th scope="col">Description</th>
+                                <th scope="col">Rule</th>
                                 <th scope="col">Actions</th>
                             </tr>
                         </thead>
@@ -142,6 +143,11 @@
                                     <input type="text" class="form-control" id="prefix" placeholder="e.g., 192.168.1.0/24">
                                 </div>
                             </div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="rule" class="form-label">Rule (Optional)</label>
+                            <input type="text" class="form-control" id="rule" placeholder="e.g., if (dst == 192.168.1.0/24) { accept; }">
+                            <div class="form-text">Leave blank to auto-generate based on prefix and action</div>
                         </div>
                         <div class="row">
                             <div class="col-md-6">

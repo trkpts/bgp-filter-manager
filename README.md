@@ -64,6 +64,7 @@ Simply serve the files using any web server (Apache, Nginx, etc.). No special se
    - Chain (e.g., bgp-in, bgp-out)
    - Prefix (e.g., 192.168.1.0/24)
    - Action (Accept/Reject/Drop)
+   - Optional rule field (e.g., "if (dst == 192.168.1.0/24) { accept; }") - leave blank to auto-generate
    - Optional prepend value (1-10)
    - Description and comments
 3. Click "Save Rule" to add it to your configuration
@@ -89,6 +90,7 @@ The tool generates commands compatible with RouterOS v7, including:
 - **Chain**: The routing filter chain name (e.g., bgp-in, bgp-out)
 - **Prefix**: The IP prefix to filter (e.g., 192.168.1.0/24)
 - **Action**: What to do with matching routes (Accept, Reject, or Drop)
+- **Rule**: The conditional rule statement (e.g., "if (dst == 192.168.1.0/24) { accept; }") - auto-generated if left blank
 - **Prepend**: Number of times to prepend to the AS path (for traffic engineering)
 - **Description**: Brief description of the filter's purpose
 - **Comment**: Additional notes about the filter
