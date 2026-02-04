@@ -1,0 +1,28 @@
+{
+  "name": "bgp-filter-manager",
+  "version": "1.0.0",
+  "description": "Web-based BGP filter management tool for MikroTik RouterOS v7",
+  "main": "index.html",
+  "scripts": {
+    "start": "npx serve .",
+    "dev": "npx live-server --port=3001",
+    "build": "echo 'Build process would happen here'",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "bgp",
+    "filter",
+    "mikrotik",
+    "routeros",
+    "routing",
+    "networking",
+    "internet-exchange"
+  ],
+  "author": "Network Administrator",
+  "license": "MIT",
+  "devDependencies": {
+    "serve": "^14.2.1",
+    "live-server": "^1.2.2"
+  },
+  "dependencies": {}
+}
