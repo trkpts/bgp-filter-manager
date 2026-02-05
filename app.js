@@ -59,7 +59,7 @@ class BGPFilterManager {
                 this.showAddEditModal(index);
             } else if (event.target.closest('.delete-btn')) {
                 event.preventDefault();
-                const button = event.closest('.delete-btn');
+                const button = event.target.closest('.delete-btn');
                 const index = parseInt(button.getAttribute('data-index'));
                 this.deleteFilter(index);
             } else if (event.target.closest('.add-first-rule-btn')) {
