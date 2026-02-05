@@ -39,34 +39,42 @@ class BGPFilterManager {
 
     bindEvents() {
         // Button events
-        this.elements.parseButton.addEventListener('click', () => this.parseFilters());
-        this.elements.clearButton.addEventListener('click', () => this.clearAll());
-        this.elements.addRuleButton.addEventListener('click', () => this.showAddEditModal());
-        this.elements.addFirstRuleButton.addEventListener('click', () => this.showAddEditModal());
-        this.elements.generateOutputButton.addEventListener('click', () => this.generateOutput());
-        this.elements.copyOutputButton.addEventListener('click', () => this.copyOutput());
-        this.elements.saveRuleButton.addEventListener('click', () => this.saveRule());
+        this.elements.parseButton?.addEventListener('click', () => this.parseFilters());
+        this.elements.clearButton?.addEventListener('click', () => this.clearAll());
+        this.elements.addRuleButton?.addEventListener('click', () => this.showAddEditModal());
+        this.elements.addFirstRuleButton?.addEventListener('click', () => this.showAddEditModal());
+        this.elements.generateOutputButton?.addEventListener('click', () => this.generateOutput());
+        this.elements.copyOutputButton?.addEventListener('click', () => this.copyOutput());
+        this.elements.saveRuleButton?.addEventListener('click', () => this.saveRule());
 
         // Modal events
-        this.elements.ruleModal.addEventListener('hidden.bs.modal', () => this.resetForm());
+        this.elements.ruleModal?.addEventListener('hidden.bs.modal', () => this.resetForm());
         
         // Event delegation for dynamic table buttons
-        this.elements.filtersTableBody.addEventListener('click', (event) => {
-            if (event.target.closest('.edit-btn')) {
-                event.preventDefault();
-                const button = event.target.closest('.edit-btn');
-                const index = parseInt(button.getAttribute('data-index'));
-                this.showAddEditModal(index);
-            } else if (event.target.closest('.delete-btn')) {
-                event.preventDefault();
-                const button = event.target.closest('.delete-btn');
-                const index = parseInt(button.getAttribute('data-index'));
-                this.deleteFilter(index);
-            } else if (event.target.closest('.add-first-rule-btn')) {
-                event.preventDefault();
-                this.showAddEditModal();
-            }
-        });
+        if (this.elements.filtersTableBody) {
+            this.elements.filtersTableBody.addEventListener('click', (event) => {
+                console.log('Table click detected:', event.target); // Debug line
+                if (event.target.closest('.edit-btn')) {
+                    event.preventDefault();
+                    const button = event.target.closest('.edit-btn');
+                    const index = parseInt(button.getAttribute('data-index'));
+                    console.log('Edit button clicked, index:', index); // Debug line
+                    this.showAddEditModal(index);
+                } else if (event.target.closest('.delete-btn')) {
+                    event.preventDefault();
+                    const button = event.target.closest('.delete-btn');
+                    const index = parseInt(button.getAttribute('data-index'));
+                    console.log('Delete button clicked, index:', index); // Debug line
+                    this.deleteFilter(index);
+                } else if (event.target.closest('.add-first-rule-btn')) {
+                    event.preventDefault();
+                    console.log('Add first rule button clicked'); // Debug line
+                    this.showAddEditModal();
+                }
+            });
+        } else {
+            console.error('filtersTableBody element not found!'); // Debug line
+        }
     }
 
     loadSampleData() {
