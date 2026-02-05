@@ -35,6 +35,19 @@ class BGPFilterManager {
             rejectedFilters: document.getElementById('rejectedFilters'),
             asnCount: document.getElementById('asnCount')
         };
+        
+        // Check if critical elements exist
+        const missingElements = [];
+        for (const [key, element] of Object.entries(this.elements)) {
+            if (!element) {
+                missingElements.push(key);
+            }
+        }
+        
+        if (missingElements.length > 0) {
+            console.error('Missing DOM elements:', missingElements);
+            this.showMessage(`Error: Missing elements - ${missingElements.join(', ')}`, 'danger');
+        }
     }
 
     bindEvents() {
@@ -188,27 +201,38 @@ class BGPFilterManager {
     }
 
     showAddEditModal(index = null) {
-        this.editingIndex = index;
+        try {
+            this.editingIndex = index;
 
-        if (index !== null) {
-            // Editing existing filter
-            const filter = this.filters[index];
-            this.elements.chain.value = filter.chain || '';
-            this.elements.prefix.value = filter.prefix;
-            this.elements.action.value = filter.action;
-            this.elements.prepend.value = filter.prepend || '';
-            this.elements.description.value = filter.description || '';
-            this.elements.comment.value = filter.comment || '';
-            this.elements.rule.value = filter.rule || '';
-            document.getElementById('ruleModalLabel').textContent = 'Edit BGP Filter Rule';
-        } else {
-            // Adding new filter
-            this.resetForm();
-            document.getElementById('ruleModalLabel').textContent = 'Add New BGP Filter Rule';
+            if (index !== null) {
+                // Editing existing filter
+                if (index >= 0 && index < this.filters.length) {
+                    const filter = this.filters[index];
+                    this.elements.chain.value = filter.chain || '';
+                    this.elements.prefix.value = filter.prefix;
+                    this.elements.action.value = filter.action;
+                    this.elements.prepend.value = filter.prepend || '';
+                    this.elements.description.value = filter.description || '';
+                    this.elements.comment.value = filter.comment || '';
+                    this.elements.rule.value = filter.rule || '';
+                    document.getElementById('ruleModalLabel').textContent = 'Edit BGP Filter Rule';
+                } else {
+                    console.error('Invalid index for editing:', index);
+                    this.showMessage('Error: Invalid filter to edit', 'danger');
+                    return;
+                }
+            } else {
+                // Adding new filter
+                this.resetForm();
+                document.getElementById('ruleModalLabel').textContent = 'Add New BGP Filter Rule';
+            }
+
+            const modal = new bootstrap.Modal(this.elements.ruleModal);
+            modal.show();
+        } catch (error) {
+            console.error('Error showing modal:', error);
+            this.showMessage('Error opening form', 'danger');
         }
-
-        const modal = new bootstrap.Modal(this.elements.ruleModal);
-        modal.show();
     }
 
     saveRule() {
@@ -402,10 +426,20 @@ class BGPFilterManager {
 
     deleteFilter(index) {
         if (confirm('Are you sure you want to delete this filter?')) {
-            this.filters.splice(index, 1);
-            this.renderTable();
-            this.updateStats();
-            this.showMessage('Filter deleted successfully', 'info');
+            try {
+                if (index >= 0 && index < this.filters.length) {
+                    this.filters.splice(index, 1);
+                    this.renderTable();
+                    this.updateStats();
+                    this.showMessage('Filter deleted successfully', 'info');
+                } else {
+                    console.error('Invalid index for deletion:', index);
+                    this.showMessage('Error: Invalid filter to delete', 'danger');
+                }
+            } catch (error) {
+                console.error('Error deleting filter:', error);
+                this.showMessage('Error deleting filter', 'danger');
+            }
         }
     }
 
@@ -490,19 +524,24 @@ class BGPFilterManager {
     }
 
     copyOutput() {
-        if (this.elements.outputArea.textContent.trim() === '') {
-            this.showMessage('No output to copy. Please generate commands first.', 'warning');
-            return;
-        }
+        try {
+            if (!this.elements.outputArea || this.elements.outputArea.textContent.trim() === '') {
+                this.showMessage('No output to copy. Please generate commands first.', 'warning');
+                return;
+            }
 
-        navigator.clipboard.writeText(this.elements.outputArea.textContent)
-            .then(() => {
-                this.showMessage('Commands copied to clipboard!', 'success');
-            })
-            .catch(err => {
-                console.error('Failed to copy: ', err);
-                this.showMessage('Failed to copy to clipboard. Please try again.', 'danger');
-            });
+            navigator.clipboard.writeText(this.elements.outputArea.textContent)
+                .then(() => {
+                    this.showMessage('Commands copied to clipboard!', 'success');
+                })
+                .catch(err => {
+                    console.error('Failed to copy: ', err);
+                    this.showMessage('Failed to copy to clipboard. Please try again.', 'danger');
+                });
+        } catch (error) {
+            console.error('Error copying output:', error);
+            this.showMessage('Error copying output', 'danger');
+        }
     }
 
     showMessage(message, type = 'info') {
