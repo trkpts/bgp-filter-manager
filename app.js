@@ -1,12 +1,17 @@
 // BGP Filter Manager for MikroTik RouterOS v7
 class BGPFilterManager {
     constructor() {
-        this.filters = [];
-        this.editingIndex = null;
-        
-        this.initializeElements();
-        this.bindEvents();
-        this.loadSampleData(); // For demo purposes
+        try {
+            this.filters = [];
+            this.editingIndex = null;
+            
+            this.initializeElements();
+            this.bindEvents();
+            this.loadSampleData(); // For demo purposes
+        } catch (error) {
+            console.error('Error initializing BGP Filter Manager:', error);
+            this.showMessage('Error initializing application. Please refresh the page.', 'danger');
+        }
     }
 
     initializeElements() {
@@ -227,8 +232,14 @@ class BGPFilterManager {
                 document.getElementById('ruleModalLabel').textContent = 'Add New BGP Filter Rule';
             }
 
-            const modal = new bootstrap.Modal(this.elements.ruleModal);
-            modal.show();
+            // Check if Bootstrap is available
+            if (typeof bootstrap !== 'undefined' && bootstrap.Modal) {
+                const modal = new bootstrap.Modal(this.elements.ruleModal);
+                modal.show();
+            } else {
+                console.error('Bootstrap modal is not available');
+                this.showMessage('Error: Bootstrap modal not available', 'danger');
+            }
         } catch (error) {
             console.error('Error showing modal:', error);
             this.showMessage('Error opening form', 'danger');
@@ -362,21 +373,27 @@ class BGPFilterManager {
     }
 
     resetForm() {
-        this.elements.chain.value = '';
-        this.elements.prefix.value = '';
-        this.elements.action.value = 'accept';
-        this.elements.prepend.value = '';
-        this.elements.description.value = '';
-        this.elements.comment.value = '';
-        this.elements.rule.value = '';
-        
-        // Clear any validation states
-        const inputs = this.elements.ruleForm.querySelectorAll('input, select, textarea');
-        inputs.forEach(input => {
-            input.classList.remove('is-invalid');
-            const feedback = input.parentNode.querySelector('.invalid-feedback');
-            if (feedback) feedback.remove();
-        });
+        try {
+            if (this.elements.chain) this.elements.chain.value = '';
+            if (this.elements.prefix) this.elements.prefix.value = '';
+            if (this.elements.action) this.elements.action.value = 'accept';
+            if (this.elements.prepend) this.elements.prepend.value = '';
+            if (this.elements.description) this.elements.description.value = '';
+            if (this.elements.comment) this.elements.comment.value = '';
+            if (this.elements.rule) this.elements.rule.value = '';
+            
+            // Clear any validation states
+            const inputs = this.elements.ruleForm ? 
+                this.elements.ruleForm.querySelectorAll('input, select, textarea') : 
+                document.querySelectorAll('#ruleForm input, #ruleForm select, #ruleForm textarea');
+            inputs.forEach(input => {
+                input.classList.remove('is-invalid');
+                const feedback = input.parentNode.querySelector('.invalid-feedback');
+                if (feedback) feedback.remove();
+            });
+        } catch (error) {
+            console.error('Error in resetForm:', error);
+        }
     }
 
     renderTable() {
